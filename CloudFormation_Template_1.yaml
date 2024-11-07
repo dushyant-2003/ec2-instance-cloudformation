@@ -1,0 +1,97 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: CloudFormation template to create IAM User, EC2 instance, EIP, Security Group, and EBS Volume
+
+Parameters:
+  AvailabilityZone:
+    Type: String
+    Description: Enter the availability zone
+    Default: us-east-1a
+  InstanceType:
+    Type: String
+    Description: Enter the instance type
+    Default: t2.micro
+  IAMUserName:
+    Type: String
+    Description: Enter the user name
+  AllowedPortName:
+    Type: String
+    Description: Enter the allowed port names for traffic.
+    Default: tcp
+  AllowedPortNumber:
+    Type: String
+
+    Description: Enter the allowed port numbers for traffic.
+
+Resources:
+  IAMUser1:
+    Type: AWS::IAM::User
+    Name: wg-cloud-user-dbansal
+    Properties:
+      ManagedPolicyArns:
+        - !Ref MyUserPolicy
+
+  MyUserPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: MyUserPolicy
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - iam:ListUsers
+              - iam:GetUser
+            Resource: !GetAtt IAMUser1.Arn 
+  
+  MyInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      AvailabilityZone: !Ref AvailabilityZone
+      ImageId: ami-0a3c3a20c09d6f377
+      InstanceType: !Ref InstanceType
+      SecurityGroups:
+        - !Ref SecurityGroup1
+ 
+ 
+  MyEIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      InstanceId: !Ref MyInstance
+
+  SecurityGroup1:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow http to client host
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+
+  EBSVolume1:
+    Type: AWS::EC2::Volume
+    Properties:
+      Encrypted: true
+      Size: 2
+      AvailabilityZone: !Ref AvailabilityZone
+
+  MyVolumeAttachment:
+    Type: AWS::EC2::VolumeAttachment
+    Properties:
+      Device: /dev/sdf                
+      InstanceId: !Ref MyInstance  
+      VolumeId: !Ref EBSVolume1
+  
+  Outputs:
+      ElasticIP:
+        Description: The Elastic IP of the instance
+        Value: !Ref MyEIP
+    
+      InstanceID:
+        Description: The Instance ID of the EC2 instance
+        Value: !Ref MyInstance
+    
+      InstanceAvailabilityZone:
+        Description: The Availability Zone of the instance
+        Value: !GetAtt MyInstance.AvailabilityZone
+    

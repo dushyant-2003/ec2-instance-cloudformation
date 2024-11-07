@@ -1,0 +1,125 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: CloudFormation template to create IAM User, EC2 instance, EIP, Security Group, and EBS Volume
+
+Mappings:
+  AMIMapping:
+    us-east-1a:
+      AMI: ami-0a3c3a20c09d6f377
+    us-east-1b:
+      AMI: ami-0b7c2a2c63e9b5d8f
+    us-east-1c:
+      AMI: ami-0c78a9c48e5a8f3f1
+
+Parameters:
+  AvailabilityZone:
+    Type: String
+    Description: Enter the availability zone
+    Default: us-east-1a
+
+  InstanceType:
+    Type: String
+    Description: Enter the instance type
+    Default: t2.micro
+    AllowedValues:
+    - t2.nano
+    - t2.micro
+    - t2.small
+    - t2.medium
+    - t2.large
+    ConstraintDescription: Must be a valid type of instance.
+
+  PortNumber:
+    Type: Number
+    Default: 22
+    Description: "Port number to allow inbound access"
+
+  IpProtocol:
+    Type: String
+    Default: tcp
+    Description: "Protocol to allow"
+
+  CidrIp:
+    Type: String
+    Default: "0.0.0.0/0"
+    Description: "CIDR range to allow inbound access"
+    AllowedPattern: "^(\\d{1,3}\\.){3}\\d{1,3}/\\d{1,2}$"
+  
+  VolumeSize:
+    Type: Number
+    Default: 2
+    Description: "Size of EBS Volumes in GB"
+    MinValue: 1
+    MaxValue: 5
+    ConstraintDescription: "Size must be in the range of 1 - 5 GBS"
+ 
+  EBSDeletionPolicy:
+    Type: String
+    Description: "EBS Deletion policy"
+    Default: Snapshot
+    AllowedValues:
+    - Snapshot
+    - Retain
+    - Delete
+    ConstraintDescription: "Deletion policy can be snapshot, retain, delete"
+
+Resources:
+  MyInstance:
+    Type: AWS::EC2::Instance
+    
+    Properties:
+      AvailabilityZone: !Ref AvailabilityZone
+      ImageId: !FindInMap [AMIMapping, !Ref AvailabilityZone, AMI]
+      InstanceType: !Ref InstanceType
+      SecurityGroups:
+        - !Ref SecurityGroup1
+      Tags:
+      - Key: Name
+        Value: ec2-instance-library-mgmt-service
+ 
+ 
+  MyEIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      InstanceId: !Ref MyInstance
+
+  SecurityGroup1:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: "Security group with configurable ingress rule"
+      SecurityGroupIngress:
+        - IpProtocol: !Ref IpProtocol
+          FromPort: !Ref PortNumber
+          ToPort: !Ref PortNumber
+          CidrIp: !Ref CidrIp
+
+  EBSVolume1:
+    Type: AWS::EC2::Volume
+    Properties:
+      Encrypted: true
+      Size: !Ref VolumeSize
+      AvailabilityZone: !Ref AvailabilityZone
+      Tags:
+      - Key: Name
+        Value: ebs-volume1-library-management-project
+    DeletionPolicy: !Ref EBSDeletionPolicy
+
+  MyVolumeAttachment:
+    Type: AWS::EC2::VolumeAttachment
+    Properties:
+      Device: /dev/sdf                
+      InstanceId: !Ref MyInstance  
+      VolumeId: !Ref EBSVolume1
+  
+Outputs:
+    ElasticIP:
+      Description: The Elastic IP of the instance
+      Value: !Ref MyEIP
+    
+    InstanceID:
+      Description: The Instance ID of the EC2 instance
+      Value: !Ref MyInstance
+    
+    InstanceAvailabilityZone:
+      Description: The Availability Zone of the instance
+      Value: !GetAtt MyInstance.AvailabilityZone
+    
